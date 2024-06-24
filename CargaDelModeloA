@@ -1,0 +1,99 @@
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Ruta de la carpeta de datos
+data_dir = r'C:\Users\David\PycharmProjects\pythonProject\carpeta_datos'
+
+# Crear datasets de entrenamiento y validación
+batch_size = 32
+img_height = 32
+img_width = 32
+
+train_ds = image_dataset_from_directory(
+    data_dir,
+    validation_split=0.2,
+    subset="training",
+    seed=123,
+    image_size=(img_height, img_width),
+    batch_size=batch_size)
+
+val_ds = image_dataset_from_directory(
+    data_dir,
+    validation_split=0.2,
+    subset="validation",
+    seed=123,
+    image_size=(img_height, img_width),
+    batch_size=batch_size)
+
+class_names = train_ds.class_names
+print("Clases:", class_names)
+
+# Normalización de los datos
+normalization_layer = layers.Rescaling(1./255)
+train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+
+# Definir el modelo de la red neuronal convolucional
+model = models.Sequential([
+    layers.Input(shape=(img_height, img_width, 3)),
+    layers.Conv2D(32, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(len(class_names))  # El número de clases debe coincidir con el número de carpetas
+])
+
+# Compilar el modelo
+model.compile(optimizer='adam',
+              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+
+# Entrenar el modelo y guardar el historial
+history = model.fit(train_ds, epochs=10, validation_data=val_ds)
+
+# Evaluar el modelo
+test_loss, test_acc = model.evaluate(val_ds, verbose=2)
+print('\nPrecisión del modelo en el conjunto de validación:', test_acc)
+
+# Guardar el modelo
+model.save('mi_modelo_personalizado.h5')
+
+# Cargar el modelo entrenado
+model = tf.keras.models.load_model('mi_modelo_personalizado.h5')
+
+# Mostrar algunas imágenes del conjunto de validación con predicciones y etiquetas reales
+plt.figure(figsize=(10, 10))
+
+# Asegurarse de que las imágenes se cargan correctamente
+for images, labels in val_ds.take(1):
+    print("Shape of images batch:", images.shape)
+    for i in range(min(len(images), 5)):
+        img = images[i].numpy()
+        print(f"Sum of image {i} pixels (should not be 0):", np.sum(img))
+
+    images = images.numpy()  # Asegurarse de que las imágenes estén en formato NumPy
+    predictions = model.predict(images)
+    predicted_classes = np.argmax(predictions, axis=1)
+    num_images = len(images)  # Número de imágenes en el lote actual
+
+    for i in range(min(num_images, 5)):  # Mostrar hasta 5 imágenes
+        ax = plt.subplot(1, 5, i + 1)
+        img = images[i]
+        if np.all(img == 0):
+            print(f"Imagen {i} está completamente negra")
+        # Deshacer la normalización para plt.imshow
+        img = (img * 255).astype(np.uint8)
+        plt.imshow(img)
+        true_label = class_names[labels[i]]
+        predicted_label = class_names[predicted_classes[i]]
+        color = "green" if predicted_label == true_label else "red"
+        plt.title(f"{predicted_label} ({true_label})", color=color)
+        plt.axis("off")
+
+plt.show()
