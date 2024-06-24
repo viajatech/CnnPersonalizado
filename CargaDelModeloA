@@ -68,7 +68,7 @@ model.save('mi_modelo_personalizado.h5')
 model = tf.keras.models.load_model('mi_modelo_personalizado.h5')
 
 # Mostrar algunas imágenes del conjunto de validación con predicciones y etiquetas reales
-plt.figure(figsize=(10, 10))
+plt.figure(figsize=(15, 5))  # Ajustar el tamaño de la figura
 
 # Asegurarse de que las imágenes se cargan correctamente
 for images, labels in val_ds.take(1):
@@ -93,7 +93,8 @@ for images, labels in val_ds.take(1):
         true_label = class_names[labels[i]]
         predicted_label = class_names[predicted_classes[i]]
         color = "green" if predicted_label == true_label else "red"
-        plt.title(f"{predicted_label} ({true_label})", color=color)
+        plt.title(f"{predicted_label}\n({true_label})", color=color, fontsize=10)  # Ajustar tamaño de la fuente y posición
         plt.axis("off")
 
+plt.tight_layout()  # Ajustar el espaciado entre subtramas
 plt.show()
