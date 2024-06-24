@@ -1,0 +1,86 @@
+#David Ruiz
+#@viajatech
+
+
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+from tensorflow.keras import layers, models
+import matplotlib.pyplot as plt
+
+# Ruta de la carpeta de datos
+data_dir = r'C:\Users\David\PycharmProjects\pythonProject\carpeta_datos'
+
+# Crear datasets de entrenamiento y validación
+batch_size = 32
+img_height = 32
+img_width = 32
+
+train_ds = image_dataset_from_directory(
+  data_dir,
+  validation_split=0.2,
+  subset="training",
+  seed=123,
+  image_size=(img_height, img_width),
+  batch_size=batch_size)
+
+val_ds = image_dataset_from_directory(
+  data_dir,
+  validation_split=0.2,
+  subset="validation",
+  seed=123,
+  image_size=(img_height, img_width),
+  batch_size=batch_size)
+
+class_names = train_ds.class_names
+print("Clases:", class_names)
+
+# Normalización de los datos
+normalization_layer = layers.Rescaling(1./255)
+train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
+val_ds = val_ds.map(lambda x, y: (normalization_layer(x), y))
+
+# Definir el modelo de la red neuronal convolucional
+model = models.Sequential([
+    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(img_height, img_width, 3)),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.Flatten(),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(len(class_names))  # El número de clases debe coincidir con el número de carpetas
+])
+
+# Compilar el modelo
+model.compile(optimizer='adam',
+              loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+              metrics=['accuracy'])
+
+# Entrenar el modelo y guardar el historial
+history = model.fit(train_ds, epochs=10, validation_data=val_ds)
+
+# Evaluar el modelo
+test_loss, test_acc = model.evaluate(val_ds, verbose=2)
+print('\nPrecisión del modelo en el conjunto de validación:', test_acc)
+
+# Guardar el modelo
+model.save('mi_modelo_personalizado.h5')
+
+# Visualizar cómo mejora la precisión y disminuye la pérdida durante el entrenamiento
+plt.figure(figsize=(12, 4))
+plt.subplot(1, 2, 1)
+plt.plot(history.history['accuracy'], label='Precisión de entrenamiento')
+plt.plot(history.history['val_accuracy'], label='Precisión de validación')
+plt.xlabel('Época')
+plt.ylabel('Precisión')
+plt.legend()
+plt.title('Precisión durante el entrenamiento')
+
+plt.subplot(1, 2, 2)
+plt.plot(history.history['loss'], label='Pérdida de entrenamiento')
+plt.plot(history.history['val_loss'], label='Pérdida de validación')
+plt.xlabel('Época')
+plt.ylabel('Pérdida')
+plt.legend()
+plt.title('Pérdida durante el entrenamiento')
+plt.show()
